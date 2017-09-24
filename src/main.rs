@@ -1,12 +1,12 @@
-extern crate png;
-
 use std::path::Path;
 use std::fs::File;
-use std::io::BufWriter;
 
-use png::HasParameters;
+mod palette;
+mod ppm;
 
-const PALETTE_SIZE: u32 = 256;
+use ppm::PPM;
+use palette::{ palette, PALETTE_SIZE };
+
 const MAX_ITERATIONS: u32 = 2000;
 const THRESHOLD: f64 = 2.0;
 
@@ -15,12 +15,12 @@ const MIN_Y: f64 = -1.0;
 const MAX_X: f64 = 1.0;
 const MAX_Y: f64 = 1.0;
 
-//const RES_X: u32 = 2560;
-//const RES_Y: u32 = 1440;
-const RES_X: u32 = 640;
-const RES_Y: u32 = 480;
+const RES_X: u32 = 2560 * 2;
+const RES_Y: u32 = 1440 * 2;
+//const RES_X: u32 = 300;
+//const RES_Y: u32 = 200;
 
-fn iterate(real: f64, imaginary: f64) -> u8 {
+fn iterate(real: f64, imaginary: f64) -> u32 {
     let mut iterations: u32 = 0;
     let mut zr = 0.0;
     let mut zi = 0.0;
@@ -33,11 +33,11 @@ fn iterate(real: f64, imaginary: f64) -> u8 {
         iterations += 1;
     }
 
-    return if iterations == MAX_ITERATIONS { 0 } else { (iterations * PALETTE_SIZE / MAX_ITERATIONS) as u8 };
+    return if iterations == MAX_ITERATIONS { u32::max_value() } else { iterations * PALETTE_SIZE / MAX_ITERATIONS };
 }
 
 fn main() {
-    let mut image_data: Vec<u8> = vec![0; ((RES_X * RES_Y) as usize)];
+    let mut image = PPM::new(RES_X, RES_Y);
 
     let step_x = (MAX_X - MIN_X) / (RES_X as f64);
     let step_y = (MAX_Y - MIN_Y) / (RES_Y as f64);
@@ -49,19 +49,15 @@ fn main() {
         for x in 0..RES_X {
             let real_coord = MIN_X + (x as f64) * step_x;
 
-            image_data.push(iterate(real_coord, imaginary_coord))
+            let color = palette(iterate(real_coord, imaginary_coord));
+            image.set_pixel(x, y, color);
         }
     }
 
     println!("Saving image");
 
-    let path = Path::new(r"output.png");
-    let file = File::create(path).unwrap();
-    let ref mut buf_writer = BufWriter::new(file);
+    let path = Path::new(r"output.ppm");
+    let mut file = File::create(path).unwrap();
 
-    let mut encoder = png::Encoder::new(buf_writer, RES_X, RES_Y);
-    encoder.set(png::ColorType::Grayscale).set(png::BitDepth::Eight);
-    let mut writer = encoder.write_header().unwrap();
-
-    writer.write_image_data(image_data.as_ref()).unwrap();
+    image.write_file(&mut file).unwrap();
 }
