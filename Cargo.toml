@@ -3,4 +3,6 @@ name = "rusty-mandelbrot"
 version = "0.1.0"
 authors = ["Emil Eriksson <emil.eriksson@codemill.se>"]
 
-[dependencies]
+[dependencies.sdl2]
+#features = ["video"]
+version = "0.30.0"
